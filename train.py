@@ -6,13 +6,13 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 import torchvision.transforms as transforms
 from torchvision.utils import save_image
 from torchmetrics.functional.image import structural_similarity_index_measure
-from model_best import LYT
+from model_best import PDA
 from losses import CombinedLoss
 from dataloader_SDSD import create_dataloaders
 import os
 import numpy as npA
 
-def calculate_psnr(img1, img2, max_pixel_value=1.0, gt_mean=False):
+def calculate_psnr(img1, img2, max_pixel_value=1.0, gt_mean=True):
     """
     Calculate PSNR (Peak Signal-to-Noise Ratio) between two images.
 
@@ -38,7 +38,7 @@ def calculate_psnr(img1, img2, max_pixel_value=1.0, gt_mean=False):
     psnr = 20 * torch.log10(max_pixel_value / torch.sqrt(mse))
     return psnr.item()
 
-def calculate_ssim(img1, img2, max_pixel_value=1.0, gt_mean=False):
+def calculate_ssim(img1, img2, max_pixel_value=1.0, gt_mean=True):
     """
     Calculate SSIM (Structural Similarity Index) between two images.
 
@@ -90,35 +90,6 @@ def main():
     # test_low = 'data/LOLv1/Test/input'
     # test_high = 'data/LOLv1/Test/target'
 
-    # LOLV2_Real
-    # train_low = 'data/LOLv2/Real/Train/Low'
-    # train_high = 'data/LOLv2/Real/Train/Normal'
-    # test_low = 'data/LOLv2/Real/Test/Low'
-    # test_high = 'data/LOLv2/Real/Test/Normal'
-
-    # LOLV2_Synthetic
-    # train_low = 'data/LOLv2/Synthetic/Train/Low'
-    # train_high = 'data/LOLv2/Synthetic/Train/Normal'
-    # test_low = 'data/LOLv2/Synthetic/Test/Low'
-    # test_high = 'data/LOLv2/Synthetic/Test/Normal'
-
-    # SDSD_Indoor
-    train_low = '/media/q/a50d1d78-9e43-4e73-a116-cc66ab4b8064/SDSD_Indoor/Train/input'
-    train_high = '/media/q/a50d1d78-9e43-4e73-a116-cc66ab4b8064/SDSD_Indoor/Train/target'
-    test_low = '/media/q/a50d1d78-9e43-4e73-a116-cc66ab4b8064/SDSD_Indoor/Test/input'
-    test_high = '/media/q/a50d1d78-9e43-4e73-a116-cc66ab4b8064/SDSD_Indoor/Test/target'
-
-    # SDSD_Outdoor
-    # ttrain_low = 'SDSD_Outdoor/Train/input'
-    # ttrain_high = 'SDSD_Outdoor/Train/target'
-    # ttest_low = 'SDSD_Outdoor/Test/input'
-    # ttest_high = 'SDSD_Outdoor/Test/input'
-
-    # SMID
-    # train_low = '/home/bdl/Low-light/SMID_Ready/train/input'
-    # train_high = '/home/bdl/Low-light/SMID_Ready/train/target'
-    # test_low = '/home/bdl/Low-light/SMID_Ready/test/input'
-    # test_high = '/home/bdl/Low-light/SMID_Ready/test/target'
     learning_rate = 1e-4
     num_epochs = 1500
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -129,7 +100,7 @@ def main():
     print(f'Train loader: {len(train_loader)}; Test loader: {len(test_loader)}')
 
     # Model, loss, optimizer, and scheduler
-    model = LYT().to(device)
+    model = PDA().to(device)
     # if torch.cuda.device_count() > 1:
     #     model = torch.nn.DataParallel(model)
 
@@ -164,7 +135,7 @@ def main():
 
         if avg_psnr > best_psnr:
             best_psnr = avg_psnr
-            torch.save(model.state_dict(), 'PNA-Net_SDSDIn_best.pth')
+            torch.save(model.state_dict(), 'best_LOLv1.pth')
             print(f'Saving model with PSNR: {best_psnr:.6f}')
 
 if __name__ == '__main__':

@@ -1,19 +1,16 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.ops as ops  # [新增] 用于 DCN
+import torchvision.ops as ops 
 import torchvision.models as models
 from pytorch_msssim import SSIM
 
-# ==========================================
-# [新增] 频域损失 (FFT Loss)
-# ==========================================
+
 class FFTLoss(nn.Module):
     def __init__(self):
         super(FFTLoss, self).__init__()
 
     def forward(self, pred, target):
-        # [关键修复] 强制转为 float32 计算 FFT，防止 bfloat16 溢出产生 NaN
         pred_f32 = pred.to(torch.float32)
         target_f32 = target.to(torch.float32)
 
@@ -24,7 +21,6 @@ class FFTLoss(nn.Module):
         return loss
 
 
-# --- 其他辅助 Loss 保持不变 ---
 class CharbonnierLoss(nn.Module):
     def __init__(self, eps=1e-3):
         super(CharbonnierLoss, self).__init__()
@@ -74,22 +70,17 @@ def histogram_loss(y_true, y_pred, bins=64, sigma=0.01):
     return torch.mean(torch.abs(y_true_hist - y_pred_hist))
 
 
-# ==========================================
-# 主 Loss 类 (加入自适应动态调节因子)
-# ==========================================
 class CombinedLoss(nn.Module):
     def __init__(self, device, warmup_epochs=50):
         super(CombinedLoss, self).__init__()
         self.device = device
         self.warmup_epochs = warmup_epochs
 
-        # 组件
         self.charbonnier = CharbonnierLoss().to(device)
         self.ssim_module = SSIM(data_range=1.0, size_average=True, channel=3).to(device)
         self.perceptual = VGGPerceptualLoss(device)
         self.fft_loss = FFTLoss().to(device)
 
-        # 初始权重配置
         self.alpha_char = 1.0
         self.alpha_ssim = 0.2
         self.alpha_perc = 0.06
@@ -98,28 +89,17 @@ class CombinedLoss(nn.Module):
 
     def forward(self, y_true, y_pred, current_epoch=None):
 
-        # 分别计算五种损失
         loss_pixel = self.charbonnier(y_pred, y_true)
         loss_ssim = 1.0 - self.ssim_module(y_pred, y_true)
         loss_perc = self.perceptual(y_true, y_pred)
         loss_col = color_loss(y_true, y_pred)
         loss_fft = self.fft_loss(y_pred, y_true)
 
-        # ==========================================
-        # [新增] 自适应秤 / 动态调节因子
-        # 根据本批次各损失项的相对大小，自动给予难下降的薄弱环节更大权重
-        # ==========================================
-        # 1. 拼接当前所有 Loss 的计算值，并切断梯度 (detach，防止影响网络本体反传)
         losses_stack = torch.stack([loss_pixel, loss_ssim, loss_perc, loss_col, loss_fft]).detach()
-
-        # 2. 通过 Softmax 归一化提取相对难易程度，并放大 5 倍(因为共有 5 个 Loss)
-        # 这样平均权重系数为 1.0；较难的（值偏大的）Loss 会获得 >1.0 的系数，较简单的则 <1.0
-        # 正确代码：用均值归一化，并加上严格的上下限截断
         mean_loss = losses_stack.mean() + 1e-6
         dynamic_weights = losses_stack / mean_loss
         dynamic_weights = torch.clamp(dynamic_weights, min=0.8, max=1.2)
 
-        # 3. 在原权重基础上乘以自适应调节因子
         total_loss = (self.alpha_char * dynamic_weights[0] * loss_pixel +
                       self.alpha_ssim * dynamic_weights[1] * loss_ssim +
                       self.alpha_perc * dynamic_weights[2] * loss_perc +

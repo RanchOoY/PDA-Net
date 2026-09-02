@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from torchmetrics.functional.image import structural_similarity_index_measure
-from model_v2 import LYT
+from model_v2 import PDA
 from dataloader import create_dataloaders
 import os
 import numpy as np
@@ -86,22 +86,7 @@ def main():
     # test_low = 'data/LOLv1/Test/input'
     # test_high = 'data/LOLv1/Test/target'
 
-    # test_low = 'data/LOLv2/Real/Test/Low'
-    # test_high = 'data/LOLv2/Real/Test/Normal'
-
-    test_low = 'data/LOLv2/Synthetic/Test/Low'
-    test_high = 'data/LOLv2/Synthetic/Test/Normal'
-
-    # SDSD_Indoor
-    # test_low = '/home/q/Low-light/SDSD_Indoor/Test/input'
-    # test_high ='/home/q/Low-light/SDSD_Indoor/Test/target'
-
-    # SDSD_Indoor
-    # test_low = '/media/q/a50d1d78-9e43-4e73-a116-cc66ab4b8064/SDSD/SDSD_Indoor_Ready/Test/input'
-    # test_high = '/media/q/a50d1d78-9e43-4e73-a116-cc66ab4b8064/SDSD/SDSD_Indoor_Ready/Test/target'
-
-
-    weights_path = 'LOLv2S.pth'
+    weights_path = 'LOLv1.pth'
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     dataset_name = test_low.split('/')[1]
@@ -111,7 +96,7 @@ def main():
     _, test_loader = create_dataloaders(None, None, test_low, test_high, crop_size=None, batch_size=1)
     print(f'Test loader: {len(test_loader)}')
 
-    model = LYT().to(device)
+    model = PDA().to(device)
     model.load_state_dict(torch.load(weights_path, map_location=device),strict=False)
     print(f'Model loaded from {weights_path}')
 

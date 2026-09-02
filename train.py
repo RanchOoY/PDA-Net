@@ -8,7 +8,7 @@ from torchvision.utils import save_image
 from torchmetrics.functional.image import structural_similarity_index_measure
 from model_best import PDA
 from losses import CombinedLoss
-from dataloader_SDSD import create_dataloaders
+from dataloader import create_dataloaders
 import os
 import numpy as npA
 
